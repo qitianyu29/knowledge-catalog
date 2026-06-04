@@ -21,22 +21,27 @@ export class CatalogSnapshot {
 
   private readonly _layout: CatalogLayout;
 
-  private constructor(basePath: string, manifest: CatalogManifest) {
+  private constructor(basePath: string, manifest: CatalogManifest, isReference: boolean) {
     this.basePath = basePath;
     this.manifest = manifest;
 
-    const catalogPath = path.join(this.basePath, 'catalog');
-    this._layout = createLayout(manifest.source.layout, catalogPath, manifest.source);
+    if (isReference) {
+      const referencePath = path.join(this.basePath, 'reference');
+      this._layout = createLayout(manifest!.referenceManifest!.source.layout, referencePath, manifest!.referenceManifest!.source);
+    } else {
+      const catalogPath = path.join(this.basePath, 'catalog');
+      this._layout = createLayout(manifest.source.layout, catalogPath, manifest.source);
+    }
   }
 
-  static async fromPath(basePath: string, ctx: gcp.ApiContext): Promise<CatalogSnapshot> {
+  static async fromPath(basePath: string, ctx: gcp.ApiContext, isReference: boolean = false): Promise<CatalogSnapshot> {
     const manifestPath = path.join(basePath, 'catalog.yaml');
     if (!fs.existsSync(manifestPath)) {
       throw new Error(`Cannot find catalog manifest at '${manifestPath}'`);
     }
 
     const manifest = await CatalogManifest.load(manifestPath, ctx);
-    const snapshot = new CatalogSnapshot(basePath, manifest);
+    const snapshot = new CatalogSnapshot(basePath, manifest, isReference);
 
     await snapshot._buildTypes(manifest, ctx);
     await snapshot._layout.init();

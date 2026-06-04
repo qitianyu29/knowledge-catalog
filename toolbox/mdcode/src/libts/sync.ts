@@ -2,6 +2,7 @@
 //
 
 import * as gcp from './gcp';
+import { ReferenceManifest } from './manifest';
 import { CatalogSnapshot } from './snapshot';
 
 export interface SyncResult {
@@ -31,6 +32,35 @@ export class CatalogSync {
   async pull(): Promise<SyncResult> {
     try {
       const entries = this._snapshot.manifest.source.entries(this._catalog.context);
+      
+      for await (const entry of entries) {
+        if (this._snapshot.entryTypes.size && !this._snapshot.entryTypes.has(entry.entryType)) {
+          continue;
+        }
+
+        // TODO: Need to populate type info if its a type we haven't seen.
+        // TODO: Handle local modification conflicts.
+        // TODO: Handle config changes or service deletions that require removing local entries.
+
+        const nameParts = entry.name.split('/');
+        const res = await this._catalog.lookupEntry(nameParts[1], nameParts[3], entry.name,
+                                                    [...this._snapshot.aspectTypes.keys()]);
+        if (res.status != 200 || !res.result) {
+          continue;
+        }
+
+        await this._snapshot._storeEntry(res.result);
+      }
+      return { success: true };
+    }
+    catch (e: any) {
+      return { success: false, details: e.message };
+    }
+  }
+
+  async reference(): Promise<SyncResult> {
+    try {
+      const entries = this._snapshot.manifest!.referenceManifest!.source.entries(this._catalog.context);
       
       for await (const entry of entries) {
         if (this._snapshot.entryTypes.size && !this._snapshot.entryTypes.has(entry.entryType)) {
