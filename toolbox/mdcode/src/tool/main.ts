@@ -79,6 +79,21 @@ cli.command('reference', 'Pull reference resource entries')
    });
 
 
+cli.command('create-init', 'Create an entrygroup and init a new snapshot')
+   .option('--id <id>', 'EntryGroup identifier')
+   .option('--display-name [display]', 'Optional. User friendly display name.')
+   .option('--description [description]', 'Optional. Description of the EntryGroup.')
+   .option('--labels [labels]', 'Optional. User-defined labels for the EntryGroup. \n An object containing a list of "key": value pairs. Example: { "name": "wrench", "mass": "1.3kg", "count": "3" }.')
+   .action(async (options) => {
+      try {
+        await commands.createInit(options);
+      }
+      catch (err: any) {
+        console.error('Error:', err.message || err);
+        process.exit(1);
+      }
+   });
+
 cli.parse();
 
 if (!cli.matchedCommand) {

@@ -22,6 +22,14 @@ export interface PushOptions {
 }
 
 
+export interface CreateInitOptions {
+  id: string;
+  display?: string;
+  description?: string;
+  labels?: string;
+}
+
+
 export async function init(options: InitOptions): Promise<number> {
   const ctx = context.ApiContext.default();
 
@@ -119,4 +127,44 @@ export async function reference(): Promise<number> {
     console.error('Error pulling reference entries:', result.details);
     return 1;
   }
+}
+
+export async function createInit(options: CreateInitOptions): Promise<number> {
+  const ctx = context.ApiContext.default();
+
+  const catalog = new dataplex.CatalogClient(ctx);
+
+  if (!options.id) {
+    console.error('Id must be specified.');
+    return 1;
+  }
+
+  console.log(options);
+
+  let labels = options.labels;
+  if (labels) {
+    labels = labels!.replace('\\', '');
+    console.log(labels);
+  }
+
+  const res = await catalog.createEntryGroup(ctx.project, ctx.location, options.id, {
+    name: `projects/${ctx.project}/locations/${ctx.location}/entryGroups/${options.id}`,
+    "displayName": options.display,
+    "description": options.description,
+    labels: `{"name": "wrench","count": "3"}`,
+  });
+
+  console.log(res);
+
+  if (res.status != 200 || !res) {
+    console.error('Error in creating the entry group', res.message)
+    return 1;
+  }
+
+  const manifest = await kcmd.CatalogManifest.initWithEntryGroup(`${ctx.project}.${ctx.location}.${options.id}`, ctx);
+
+  manifest.save('catalog.yaml');
+  console.log(fs.readFileSync('catalog.yaml', 'utf8'));
+
+  return 0;
 }
